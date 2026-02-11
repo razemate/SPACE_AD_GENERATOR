@@ -5,6 +5,7 @@ import { gemini } from './services/geminiService';
 import { AdData, AspectRatio } from './types';
 import { toBlob } from 'html-to-image';
 import { supabase } from './lib/supabaseClient';
+import { Undo2, Redo2, Type, MoveRight, Palette } from 'lucide-react';
 
 const SANS_FONTS = [
   'Auto', 'Inter', 'Montserrat', 'Roboto', 'Open Sans', 'Lato', 
@@ -14,6 +15,7 @@ const HEADLINE_SIZES = ['Auto', '80px', '100px', '120px', '140px', '160px', '200
 const SUBHEADLINE_SIZES = ['Auto', '24px', '32px', '42px', '48px', '56px', '64px'];
 const CTA_SIZES = ['Auto', '24px', '32px', '40px', '48px'];
 const LINE_HEIGHTS = ['Auto', '0.9', '1.0', '1.1', '1.2', '1.3', '1.4', '1.5', '1.6', '1.8'];
+const WEIGHT_OPTIONS = ['Regular', 'Medium', 'Bold', 'Black'];
 const ASPECT_RATIOS: AspectRatio[] = ['1:1', '2:3', '3:2', '3:4', '4:3', '9:16', '16:9', '21:9'];
 
 const App: React.FC = () => {
@@ -29,19 +31,28 @@ const App: React.FC = () => {
     headlineFont: 'Auto',
     headlineSize: 'Auto',
     headlineLineHeight: 'Auto',
+    headlineWeight: 'Black',
+    headlineColor: '#ffffff',
     subheadline: "Not a government. A $186 billion crypto company — stockpiling physical gold.",
     subheadlineFont: 'Auto',
     subheadlineSize: 'Auto',
     subheadlineLineHeight: 'Auto',
+    subheadlineWeight: 'Medium',
+    subheadlineColor: '#e4e4e7',
     cta: "See the companies next",
     ctaFont: 'Auto',
     ctaSize: 'Auto',
+    ctaWeight: 'Black',
+    ctaColor: '#ebb308',
     imageUrl: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=1200", 
     theme: 'dark',
     aspectRatio: '16:9',
     showBadge: false,
     promptStrategy: "" 
   });
+
+  const [history, setHistory] = useState<AdData[]>([adData]);
+  const [historyIndex, setHistoryIndex] = useState(0);
 
   const [exportSettings, setExportSettings] = useState({ format: 'PNG', resolution: '4K' });
   const [isGenerating, setIsGenerating] = useState(false);
@@ -134,13 +145,51 @@ const App: React.FC = () => {
     }
   };
 
+  const pushToHistory = (newData: AdData) => {
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push(newData);
+    // Keep max 50 items in history
+    if (newHistory.length > 50) newHistory.shift();
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+  };
+
+  const undo = () => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setAdData(history[newIndex]);
+    }
+  };
+
+  const redo = () => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setAdData(history[newIndex]);
+    }
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     const finalValue = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
     setAdData(prev => ({ ...prev, [name]: finalValue }));
+    
+    // Auto-push history for selects and colors (immediate feedback)
+    if (type === 'select-one' || type === 'color' || type === 'checkbox') {
+      pushToHistory({ ...adData, [name]: finalValue });
+    }
   };
 
-  const handleRatioChange = (ratio: AspectRatio) => setAdData(prev => ({ ...prev, aspectRatio: ratio }));
+  const handleBlur = () => {
+    pushToHistory(adData);
+  };
+
+  const handleRatioChange = (ratio: AspectRatio) => {
+    const newData = { ...adData, aspectRatio: ratio };
+    setAdData(newData);
+    pushToHistory(newData);
+  };
 
   const initiateExport = async () => {
     if (!previewRef.current) return;
@@ -210,7 +259,7 @@ const App: React.FC = () => {
               </div>
               
               <div className="space-y-3 bg-zinc-800/20 p-3 rounded-lg border border-zinc-800/50">
-                <textarea name="headline" rows={2} value={adData.headline} onChange={handleInputChange} className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-2 py-1.5 text-xs" />
+                <textarea name="headline" rows={2} value={adData.headline} onChange={handleInputChange} onBlur={handleBlur} className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-2 py-1.5 text-xs" />
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <label className="block text-[9px] text-zinc-500 font-bold uppercase">Size</label>
@@ -225,10 +274,25 @@ const App: React.FC = () => {
                     </select>
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div className="space-y-1">
+                    <label className="block text-[9px] text-zinc-500 font-bold uppercase">Weight</label>
+                    <select name="headlineWeight" value={adData.headlineWeight} onChange={handleInputChange} className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-1 py-1 text-[10px]">
+                      {WEIGHT_OPTIONS.map(w => <option key={w} value={w}>{w}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-[9px] text-zinc-500 font-bold uppercase">Color</label>
+                    <div className="flex gap-1.5">
+                      <input type="color" name="headlineColor" value={adData.headlineColor} onChange={handleInputChange} className="w-6 h-6 rounded border border-zinc-700 bg-transparent p-0 cursor-pointer overflow-hidden" />
+                      <input type="text" name="headlineColor" value={adData.headlineColor} onChange={handleInputChange} className="flex-1 bg-zinc-800 border border-zinc-700 rounded-md px-1 py-0.5 text-[9px]" />
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-3 bg-zinc-800/20 p-3 rounded-lg border border-zinc-800/50">
-                <textarea name="subheadline" rows={2} value={adData.subheadline} onChange={handleInputChange} className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-2 py-1.5 text-xs resize-none" />
+                <textarea name="subheadline" rows={2} value={adData.subheadline} onChange={handleInputChange} onBlur={handleBlur} className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-2 py-1.5 text-xs resize-none" />
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <label className="block text-[9px] text-zinc-500 font-bold uppercase">Size</label>
@@ -241,6 +305,46 @@ const App: React.FC = () => {
                     <select name="subheadlineLineHeight" value={adData.subheadlineLineHeight} onChange={handleInputChange} className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-1 py-1 text-[10px]">
                       {LINE_HEIGHTS.map(h => <option key={h} value={h}>{h}</option>)}
                     </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div className="space-y-1">
+                    <label className="block text-[9px] text-zinc-500 font-bold uppercase">Weight</label>
+                    <select name="subheadlineWeight" value={adData.subheadlineWeight} onChange={handleInputChange} className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-1 py-1 text-[10px]">
+                      {WEIGHT_OPTIONS.map(w => <option key={w} value={w}>{w}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-[9px] text-zinc-500 font-bold uppercase">Color</label>
+                    <div className="flex gap-1.5">
+                      <input type="color" name="subheadlineColor" value={adData.subheadlineColor} onChange={handleInputChange} className="w-6 h-6 rounded border border-zinc-700 bg-transparent p-0 cursor-pointer overflow-hidden" />
+                      <input type="text" name="subheadlineColor" value={adData.subheadlineColor} onChange={handleInputChange} className="flex-1 bg-zinc-800 border border-zinc-700 rounded-md px-1 py-0.5 text-[9px]" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 bg-zinc-800/20 p-3 rounded-lg border border-zinc-800/50">
+                <input type="text" name="cta" value={adData.cta} onChange={handleInputChange} onBlur={handleBlur} placeholder="CTA Text..." className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-2 py-1.5 text-xs" />
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="block text-[9px] text-zinc-500 font-bold uppercase">Size</label>
+                    <select name="ctaSize" value={adData.ctaSize} onChange={handleInputChange} className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-1 py-1 text-[10px]">
+                      {CTA_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-[9px] text-zinc-500 font-bold uppercase">Weight</label>
+                    <select name="ctaWeight" value={adData.ctaWeight} onChange={handleInputChange} className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-1 py-1 text-[10px]">
+                      {WEIGHT_OPTIONS.map(w => <option key={w} value={w}>{w}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[9px] text-zinc-500 font-bold uppercase">Button Color</label>
+                  <div className="flex gap-2">
+                    <input type="color" name="ctaColor" value={adData.ctaColor} onChange={handleInputChange} className="w-10 h-8 rounded border border-zinc-700 bg-transparent p-0 cursor-pointer overflow-hidden" />
+                    <input type="text" name="ctaColor" value={adData.ctaColor} onChange={handleInputChange} className="flex-1 bg-zinc-800 border border-zinc-700 rounded-md px-2 py-1 text-[10px]" />
                   </div>
                 </div>
               </div>
@@ -283,7 +387,27 @@ const App: React.FC = () => {
               <h2 className="text-[11px] font-black italic tracking-widest uppercase font-display text-zinc-400">Studio <span className="text-yellow-500">Output</span></h2>
               <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-wide">High Fidelity Coordinates</p>
             </div>
-            <button onClick={initiateExport} className="bg-zinc-100 hover:bg-white text-black px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all shadow-lg font-display">Export Asset</button>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1.5 border-r border-zinc-800 pr-4">
+                <button 
+                  onClick={undo} 
+                  disabled={historyIndex === 0}
+                  title="Undo"
+                  className="p-1.5 hover:bg-zinc-800 rounded-md disabled:opacity-20 disabled:cursor-not-allowed transition-all active:scale-90"
+                >
+                  <Undo2 size={16} className="text-zinc-400" />
+                </button>
+                <button 
+                  onClick={redo} 
+                  disabled={historyIndex === history.length - 1}
+                  title="Redo"
+                  className="p-1.5 hover:bg-zinc-800 rounded-md disabled:opacity-20 disabled:cursor-not-allowed transition-all active:scale-90"
+                >
+                  <Redo2 size={16} className="text-zinc-400" />
+                </button>
+              </div>
+              <button onClick={initiateExport} className="bg-zinc-100 hover:bg-white text-black px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all shadow-lg font-display">Export Asset</button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-auto bg-[radial-gradient(circle_at_center,_#111_0%,_transparent_100%)] p-8">

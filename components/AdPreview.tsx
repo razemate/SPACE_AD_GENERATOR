@@ -56,11 +56,21 @@ const AdPreview: React.FC<AdPreviewProps> = ({ data, isGenerating }) => {
     };
   }, [baseWidth, baseHeight, data.aspectRatio]);
 
-  const getStyle = (font: string, size: string, lineHeight?: string) => {
+  const getStyle = (font: string, size: string, lineHeight?: string, weight?: string, color?: string) => {
     const style: React.CSSProperties = {};
     if (font && font !== 'Auto') style.fontFamily = `'${font}', sans-serif`;
     if (size && size !== 'Auto') style.fontSize = size; 
     if (lineHeight && lineHeight !== 'Auto') style.lineHeight = lineHeight;
+    if (weight) {
+      const weightMap: Record<string, string> = {
+        'Regular': '400',
+        'Medium': '500',
+        'Bold': '700',
+        'Black': '900'
+      };
+      style.fontWeight = weightMap[weight] || weight;
+    }
+    if (color) style.color = color;
     return style;
   };
 
@@ -95,9 +105,9 @@ const AdPreview: React.FC<AdPreviewProps> = ({ data, isGenerating }) => {
       <div className="absolute inset-0 flex flex-col justify-end p-[100px]">
         <div className="max-w-[1500px] space-y-[35px]">
           <h2 
-            className="font-black text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.8)] uppercase tracking-tight"
+            className="drop-shadow-[0_10px_10px_rgba(0,0,0,0.8)] uppercase tracking-tight"
             style={{
-              ...getStyle(data.headlineFont, data.headlineSize, data.headlineLineHeight),
+              ...getStyle(data.headlineFont, data.headlineSize, data.headlineLineHeight, data.headlineWeight, data.headlineColor),
               fontSize: data.headlineSize === 'Auto' ? '120px' : data.headlineSize,
               lineHeight: data.headlineLineHeight === 'Auto' ? '1.05' : data.headlineLineHeight,
             }}
@@ -106,9 +116,9 @@ const AdPreview: React.FC<AdPreviewProps> = ({ data, isGenerating }) => {
           </h2>
 
           <p 
-            className="text-zinc-200 font-medium drop-shadow-[0_5px_5px_rgba(0,0,0,0.5)]"
+            className="drop-shadow-[0_5px_5px_rgba(0,0,0,0.5)]"
             style={{
-              ...getStyle(data.subheadlineFont, data.subheadlineSize, data.subheadlineLineHeight),
+              ...getStyle(data.subheadlineFont, data.subheadlineSize, data.subheadlineLineHeight, data.subheadlineWeight, data.subheadlineColor),
               fontSize: data.subheadlineSize === 'Auto' ? '42px' : data.subheadlineSize,
               lineHeight: data.subheadlineLineHeight === 'Auto' ? '1.5' : data.subheadlineLineHeight,
               maxWidth: '1200px'
@@ -119,9 +129,11 @@ const AdPreview: React.FC<AdPreviewProps> = ({ data, isGenerating }) => {
 
           <div className="pt-[30px]">
             <button 
-              className="bg-yellow-500 text-black font-black rounded-none shadow-2xl flex items-center gap-[20px] active:scale-95 transition-all duration-300 ease-out hover:scale-105 hover:shadow-[0_0_80px_rgba(234,179,8,0.6)] group"
+              className="rounded-none shadow-2xl flex items-center gap-[20px] active:scale-95 transition-all duration-300 ease-out hover:scale-105 hover:shadow-[0_0_80px_rgba(234,179,8,0.6)] group"
               style={{
-                ...getStyle(data.ctaFont, data.ctaSize === 'Auto' ? '32px' : data.ctaSize),
+                ...getStyle(data.ctaFont, data.ctaSize === 'Auto' ? '32px' : data.ctaSize, undefined, data.ctaWeight, data.ctaColor),
+                backgroundColor: data.ctaColor === '#ebb308' || !data.ctaColor ? '#ebb308' : data.ctaColor,
+                color: (data.ctaColor === '#ebb308' || !data.ctaColor) ? 'black' : 'white', // Basic auto-color for text if background changes
                 padding: '25px 70px',
                 fontSize: data.ctaSize === 'Auto' ? '32px' : data.ctaSize,
                 letterSpacing: '0.1em'
